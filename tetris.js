@@ -3,30 +3,35 @@
 const WALL_COLOR = "#AAAAAA";
 const HEIGHT = 20;
 const WIDTH = 20;
+const pause = createPauseWrapper();
+const block = createBlockWrapper();
+const grid = createGrid()
 
-const global = function() {
+initialiseGame();
+
+function createPauseWrapper() {
 	var paused = false;
 
 	return {
-		isPaused: function() {
+		isPaused() {
 			return paused;
 		},
 
-		pause: function() {
+		pause() {
 			paused = true;
 		},
 
-		resume: function() {
+		resume() {
 			paused = false;
 		}
 	};
-}();
+}
 
-const grid = function() {
+function createGrid() {
 	var grid = [];
 
 	return {
-		initialiseEmptyGrid: function() {
+		initialiseEmptyGrid() {
 			for (let row = 0; row < HEIGHT; row++) {
 				grid.push([]);
 				for (let col = 0; col < WIDTH; col++) 
@@ -34,7 +39,7 @@ const grid = function() {
 			}
 		},
 
-		deleteRowInGrid: function(row) {
+		deleteRow(row) {
 			const emptyRow = new Array(WIDTH).map(elem => elem = false);
 			const beforeRow = grid.slice(0, row);
 			const afterRow = grid.slice(row + 1, HEIGHT);
@@ -42,90 +47,105 @@ const grid = function() {
 			grid = [emptyRow].concat(beforeRow.concat(afterRow));
 		},
 
-		isFilled: function(row, col) {
+		isFilled(row, col) {
 			return grid[row][col];
 		},
 
-		setFilled: function(row, col) {
+		setFilled(row, col) {
 			grid[row][col] = true;
 		},
 	};
-}();
+}
 
-const block = function() {
-	var currentBlockColor;
+function createBlockWrapper() {
+	var currentColor;
 	var rowOffset; 
 	var colOffset;
 	var blockIndex;
 	var rotationIndex;
 
+	const square = [[[0, 0], [0, 1], [1, 0], [1, 1]],
+				    [[0, 0], [0, 1], [1, 0], [1, 1]], 
+				    [[0, 0], [0, 1], [1, 0], [1, 1]], 
+				    [[0, 0], [0, 1], [1, 0], [1, 1]]];
+
+	const shapeT = [[[0, 0], [0, 1], [0, 2], [1, 1]], 
+			        [[0, 0], [1, 0], [2, 0], [1, 1]], 
+			        [[1, 1], [1, 2], [1, 3], [0, 2]], 
+			        [[1, 1], [0, 2], [1, 2], [2, 2]]];
+
+	const line = [[[0, 0], [0, 1], [0, 2], [0, 3]], 
+				  [[0, 0], [1, 0], [2, 0], [3, 0]], 
+				  [[0, 0], [0, 1], [0, 2], [0, 3]], 
+				  [[0, 0], [1, 0], [2, 0], [3, 0]]];
+
+	const shapeL = [[[0, 0], [1, 0], [2, 0], [2, 1]], 
+	                [[1, 1], [1, 2], [1, 3], [0, 3]], 
+					[[0, 0], [0, 1], [1, 0], [2, 0]], 
+					[[0, 0], [1, 0], [1, 1], [1, 2]]];
+
+	const mirror = 	[[[0, 0], [0, 1], [1, 1], [1, 2]], 
+	                 [[2, 2], [1, 2], [1, 3], [0, 3]], 
+					 [[1, 1], [1, 2], [0, 2], [0, 3]], 
+					 [[0, 0], [1, 0], [1, 1], [2, 1]]];
+
 	const blockLength = 4;
-	const blockColors = ["#001f3f", "#0074D9", "#7FDBFF", "#39CCCC", "#FF4136", "#FFDC00"];
-	const possibleBlocks =  [
-							[ [ [0, 0], [0, 1], [0, 2], [0, 3] ], [ [0, 0], [1, 0], [2, 0], [3, 0] ], [ [0, 0], [0, 1], [0, 2], [0, 3] ], [ [0, 0], [1, 0], [2, 0], [3, 0] ] ], 
-							[ [ [0, 0], [0, 1], [1, 0], [1, 1] ], [ [0, 0], [0, 1], [1, 0], [1, 1] ], [ [0, 0], [0, 1], [1, 0], [1, 1] ], [ [0, 0], [0, 1], [1, 0], [1, 1] ] ], 
-							[ [ [0, 0], [0, 1], [0, 2], [1, 1] ], [ [0, 0], [1, 0], [2, 0], [1, 1] ], [ [1, 1], [1, 2], [1, 3], [0, 2] ], [ [1, 1], [0, 2], [1, 2], [2, 2] ] ], 
-							[ [ [0, 0], [1, 0], [2, 0], [2, 1] ], [ [1, 1], [1, 2], [1, 3], [0, 3] ], [ [0, 0], [0, 1], [1, 0], [2, 0] ], [ [0, 0], [1, 0], [1, 1], [1, 2] ] ], 
-							[ [ [0, 0], [0, 1], [1, 1], [1, 2] ], [ [2, 2], [1, 2], [1, 3], [0, 3] ], [ [1, 1], [1, 2], [0, 2], [0, 3] ], [ [0, 0], [1, 0], [1, 1], [2, 1] ] ]
-							];
+	const blockTypes = [square, shapeT, line, shapeL, mirror];
+	const colors = ["#001f3f", "#0074D9", "#7FDBFF", "#39CCCC", "#FF4136", "#FFDC00"];
 
 	return {
-		newBlock: function() {
-			blockIndex = rng(0, possibleBlocks.length);
-			rotationIndex = rng(0, possibleBlocks[0].length);
+		newBlock() {
+			blockIndex = randomIntBetween(0, blockTypes.length);
+			rotationIndex = randomIntBetween(0, blockTypes[0].length);
 			
 			rowOffset = 0;
 			colOffset = 0;
 		},
 
-		nextRotation: function() {
+		nextRotation() {
 			if (rotationIndex === 3)
 				rotationIndex = 0;
 			else
 				rotationIndex++;
 		},
 
-		previousRotation: function() {
+		previousRotation() {
 			if (rotationIndex === 0)
 				rotationIndex = 3;
 			else
 				rotationIndex--;
 		},
 
-		newBlockColor: function() {
-			currentBlockColor = blockColors[rng(0, blockColors.length)];
+		newColor() {
+			currentColor = colors[randomIntBetween(0, colors.length)];
 		},
 
-		getBlockLength: function() {
+		length() {
 			return blockLength;
 		},
 
-		updateOffsets: function(rowMove, colMove) {
+		updateOffsets(rowMove, colMove) {
 			rowOffset += rowMove;
 			colOffset += colMove;
 		},
 
-		getBlockColor: function() {
-			return currentBlockColor;
+		color() {
+			return currentColor;
 		},
 
-		// Allows currentBlock to be iterated over
-		getBlockRow: function(index) {
-			var currentBlock = possibleBlocks[blockIndex][rotationIndex];
+		row(index) {
+			const currentBlock = blockTypes[blockIndex][rotationIndex];
 
 			return currentBlock[index][0] + rowOffset;
 		},
 
-		// Allows currentBlock to be iterated over
-		getBlockCol: function(index) {
-			var currentBlock = possibleBlocks[blockIndex][rotationIndex];
+		col(index) {
+			const currentBlock = blockTypes[blockIndex][rotationIndex];
 
 			return currentBlock[index][1] + colOffset;
 		},
 	};
-}();
-
-initialiseGame();
+}
 
 function initialiseGame() {
 	grid.initialiseEmptyGrid();
@@ -151,21 +171,21 @@ async function fallingBlock(gameOver) {
 	createBlock();
 
 	while (canMoveDown()) {
-		if (!global.isPaused())
+		if (!pause.isPaused())
 			moveDown();
 
 		await wait();
 	}
 
 	renderBlockInGrid();
-	checkForLineClears();
+	handleForLineClears();
 	
 	if (isGameOver())
 		gameOver();
 }
 
 function createBlock() {
-	block.newBlockColor();
+	block.newColor();
 	block.newBlock();
 	moveBlockToMiddle();
 }
@@ -185,22 +205,22 @@ function isGameOver() {
 function addEventListeners() {
 	document.addEventListener("keydown", dealWithKeyPress);
 	document.querySelector("#reset").addEventListener("click", refreshBrowser);
-	document.querySelector("#pause").addEventListener("click", pause);
+	document.querySelector("#pause").addEventListener("click", pauseGame);
 }
 
 function refreshBrowser() {
 	 location = location;
 }
 
-function pause(clickable) {
+function pauseGame(clickable) {
 	const pauseButton = clickable.target;
 
-	if (global.isPaused()) {
-		global.resume();
+	if (pause.isPaused()) {
+		pause.resume();
 		pauseButton.innerHTML = "Pause";
 	}
 	else {
-		global.pause();
+		pause.pause();
 		pauseButton.innerHTML = "Resume";
 	}
 }
@@ -212,7 +232,7 @@ function dealWithKeyPress(keyPress) {
 	const rightArrow = 39;
 	const downArrow = 40;
 
-	if (!global.isPaused()) {
+	if (!pause.isPaused()) {
 		switch (keyPress.keyCode) {
 			case upArrow:
 				rotatePiece();
@@ -241,23 +261,23 @@ function rotatePiece() {
 	renderBlockInDOM();
 }
 function noCollisions() {
-	return canMoveBlock(0, 0, i => block.getBlockRow(i) >= HEIGHT || block.getBlockCol(i) < 0 || block.getBlockCol(i) >= HEIGHT);
+	return canMoveBlock(0, 0, i => block.row(i) >= HEIGHT || block.col(i) < 0 || block.col(i) >= HEIGHT);
 }
 
 function canMoveDown() {
-	return canMoveBlock(1, 0, i => block.getBlockRow(i) >= HEIGHT - 1);
+	return canMoveBlock(1, 0, i => block.row(i) >= HEIGHT - 1);
 }
 
 function moveLeft() {
-	moveBlock(0, -1, i => block.getBlockCol(i) <= 0);
+	moveBlock(0, -1, i => block.col(i) <= 0);
 }
 
 function moveRight() {
-	moveBlock(0, 1, i => block.getBlockCol(i) >= WIDTH - 1);
+	moveBlock(0, 1, i => block.col(i) >= WIDTH - 1);
 }
 
 function moveDown() {
-	moveBlock(1, 0, i => block.getBlockRow(i) >= HEIGHT - 1);
+	moveBlock(1, 0, i => block.row(i) >= HEIGHT - 1);
 }
 
 function moveBlock(rowMove, colMove, edgeGridCondition) {
@@ -266,8 +286,8 @@ function moveBlock(rowMove, colMove, edgeGridCondition) {
 }
 
 function canMoveBlock(rowMove, colMove, edgeGridCondition) {
-	for (let i = 0; i < block.getBlockLength(); i++) 
-		if (edgeGridCondition(i) || grid.isFilled(block.getBlockRow(i) + rowMove, block.getBlockCol(i) + colMove))
+	for (let i = 0; i < block.length(); i++) 
+		if (edgeGridCondition(i) || grid.isFilled(block.row(i) + rowMove, block.col(i) + colMove))
 			return false;		
 
 	return true;
@@ -314,18 +334,18 @@ function shiftBlock(rowMove, colMove) {
 }
 
 function eraseBlockInDOM() {
-	for (let i = 0; i < block.getBlockLength(); i++) 
-		eraseTileInDOM(block.getBlockRow(i), block.getBlockCol(i));
+	for (let i = 0; i < block.length(); i++) 
+		eraseTileInDOM(block.row(i), block.col(i));
 }
 
 function renderBlockInDOM() {
-	for (let i = 0; i < block.getBlockLength(); i++) 
-		renderTileInDOM(block.getBlockColor(), block.getBlockRow(i), block.getBlockCol(i));
+	for (let i = 0; i < block.length(); i++) 
+		renderTileInDOM(block.color(), block.row(i), block.col(i));
 }
 
 function renderBlockInGrid() {
-	for (let i = 0; i < block.getBlockLength(); i++)
-		grid.setFilled(block.getBlockRow(i), block.getBlockCol(i));
+	for (let i = 0; i < block.length(); i++)
+		grid.setFilled(block.row(i), block.col(i));
 }
 
 async function wait() {
@@ -336,7 +356,7 @@ async function wait() {
 	});	
 }
 
-function checkForLineClears() {
+function handleForLineClears() {
 	for (let row = 0; row < HEIGHT; row++) 
 		if (isFilledLine(row)) 
 			clearLine(row);
@@ -351,7 +371,7 @@ function isFilledLine(row) {
 }
 
 function clearLine(row) {
-	grid.deleteRowInGrid(row);
+	grid.deleteRow(row);
 	deleteRowInDOM(row);
 }
 
@@ -380,7 +400,7 @@ function getTileInDOM(row, col) {
 	return tileDOM;
 }
 
-// Generates a random number whose value lies between lower and upper
-function rng(lower, upper) {
+// Generates a random integer whose value lies between lower and upper
+function randomIntBetween(lower, upper) {
 	return Math.floor(Math.random() * (upper - lower)) + lower;
 }
